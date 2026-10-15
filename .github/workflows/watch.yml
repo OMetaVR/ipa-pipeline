@@ -1,0 +1,26 @@
+# Reusable watcher for an OMetaVR fork. The fork calls it from .github/workflows/ometa-watch.yml.
+
+name: Watch
+
+on:
+  workflow_call:
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout fork config
+        uses: actions/checkout@v4
+        with:
+          path: src
+          sparse-checkout: .ometa
+      - name: Checkout ipa-pipeline
+        uses: actions/checkout@v4
+        with:
+          repository: OMetaVR/ipa-pipeline
+          path: pipeline
+      - name: Check upstream and start a build if possible
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OMETA_CONFIG: src/.ometa/config.json
+        run: python3 pipeline/scripts/watch.py

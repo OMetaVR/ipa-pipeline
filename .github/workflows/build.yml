@@ -1,0 +1,124 @@
+# Reusable build for an OMetaVR fork. The fork calls it from .github/workflows/ometa-build.yml.
+#
+# 1. Checks out the fork and merges upstream's release tag into it (in the runner only),
+#    so the build is upstream's release plus the fork's own changes.
+# 2. Gets the base IPA, if the fork injects into an app: from the fork's private
+#    "base-ipas" draft release, or from base.url in .ometa/config.json.
+# 3. Runs the fork's .ometa/build.sh, which puts the release files in $OUT.
+# 4. Publishes (or updates) the fork's GitHub release.
+
+name: Build
+
+on:
+  workflow_call:
+    inputs:
+      upstream_tag:
+        required: true
+        type: string
+      base_version:
+        required: false
+        type: string
+        default: ""
+      runner:
+        required: false
+        type: string
+        default: macos-15
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      UPSTREAM_TAG: ${{ inputs.upstream_tag }}
+    steps:
+      - name: Checkout fork
+        uses: actions/checkout@v4
+        with:
+          path: src
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Checkout ipa-pipeline
+        uses: actions/checkout@v4
+        with:
+          repository: OMetaVR/ipa-pipeline
+          path: pipeline
+
+      - name: Merge upstream ${{ inputs.upstream_tag }}
+        run: |
+          UPSTREAM=$(jq -r .upstream src/.ometa/config.json)
+          echo "UPSTREAM=$UPSTREAM" >> "$GITHUB_ENV"
+          cd src
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --quiet --no-tags "https://github.com/$UPSTREAM.git" "refs/tags/$UPSTREAM_TAG:refs/ometa/upstream"
+          if ! git merge --no-edit refs/ometa/upstream; then
+            echo "::error::The fork's changes conflict with upstream $UPSTREAM_TAG. Merge upstream into the fork by hand, then re-run."
+            git merge --abort; exit 1
+          fi
+          git submodule update --init --recursive
+          echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Get base IPA
+        run: |
+          CFG=src/.ometa/config.json
+          mkdir -p "$RUNNER_TEMP/base"
+          if [ "$(jq -r '.base // empty' $CFG)" = "" ]; then
+            echo "No base IPA needed"; exit 0
+          fi
+          IPA="$RUNNER_TEMP/base/base.ipa"
+          URL=$(jq -r '.base.url // empty' $CFG)
+          if [ -n "$URL" ]; then
+            curl -fsSL --retry 3 "$URL" -o "$IPA"
+          else
+            NAME=$(python3 pipeline/scripts/common.py base-asset $CFG "${{ inputs.base_version }}")
+            # gh release download doesn't reliably find draft releases, so go through the API.
+            ID=$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+              -q ".[] | select(.draft and .tag_name == \"base-ipas\") | .assets[] | select(.name == \"$NAME\") | .id")
+            [ -n "$ID" ] || { echo "::error::$NAME not found in the base-ipas draft release"; exit 1; }
+            curl -fsSL -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/octet-stream" \
+              "https://api.github.com/repos/$GITHUB_REPOSITORY/releases/assets/$ID" -o "$IPA"
+          fi
+          source pipeline/lib/helpers.sh
+          VERSION=$(ipa_info "$IPA" CFBundleShortVersionString)
+          echo "Base IPA: $(ipa_info "$IPA" CFBundleIdentifier) $VERSION"
+          echo "BASE_IPA=$IPA" >> "$GITHUB_ENV"
+          echo "BASE_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Build (.ometa/build.sh)
+        run: |
+          export SRC="$GITHUB_WORKSPACE/src" OUT="$GITHUB_WORKSPACE/out" PIPELINE="$GITHUB_WORKSPACE/pipeline"
+          mkdir -p "$OUT"
+          cd "$SRC"
+          bash .ometa/build.sh
+          ls -l "$OUT"
+          [ -n "$(ls -A "$OUT")" ] || { echo "::error::build.sh produced no files in \$OUT"; exit 1; }
+          (cd "$OUT" && shasum -a 256 *)
+
+      - name: Publish release
+        run: |
+          CFG=src/.ometa/config.json
+          NAME=$(jq -r .name $CFG)
+          TAG=$(python3 pipeline/scripts/common.py release-tag $CFG "$UPSTREAM_TAG" ${BASE_VERSION:-})
+          TITLE="$NAME ${UPSTREAM_TAG#v}${BASE_VERSION:+ ($(jq -r .base.name $CFG) $BASE_VERSION)}"
+          {
+            echo "Built from upstream [\`$UPSTREAM_TAG\`](https://github.com/$UPSTREAM/releases/tag/$UPSTREAM_TAG) + this fork's changes (\`$COMMIT\`)${BASE_VERSION:+, injected into **$(jq -r .base.name $CFG) $BASE_VERSION**}."
+            echo
+            [ -f src/.ometa/notes.md ] && cat src/.ometa/notes.md && echo
+            echo "Also available through the [Meta's Apps source](https://ometavr.github.io/ipa-source/source.json)."
+            echo
+            echo "---"
+            echo
+            echo "<details><summary>Upstream release notes</summary>"
+            echo
+            gh release view "$UPSTREAM_TAG" -R "$UPSTREAM" --json body -q .body | tr -d '\r' || true
+            echo
+            echo "</details>"
+          } > notes.md
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* -R "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --title "$TITLE" --notes-file notes.md
+          else
+            gh release create "$TAG" out/* -R "$GITHUB_REPOSITORY" --title "$TITLE" --notes-file notes.md --target "$GITHUB_SHA"
+          fi
+          echo "Released $TAG"
