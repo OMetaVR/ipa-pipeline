@@ -83,4 +83,5 @@ EOF
 [ -f .ometa/build.sh ] || printf '#!/usr/bin/env bash\nsource "$PIPELINE/lib/helpers.sh"\n# Build, then copy release files to "$OUT".\n' > .ometa/build.sh
 
 gh api -X PUT "repos/$FORK/actions/permissions" -F enabled=true -f allowed_actions=all >/dev/null
+gh repo edit "$FORK" --enable-issues >/dev/null   # forks start with issues off; the watcher needs them
 echo "Fork ready at $DIR. Edit .ometa/config.json and .ometa/build.sh, then commit and push."
