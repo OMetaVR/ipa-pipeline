@@ -7,10 +7,14 @@ set -euo pipefail
 
 log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 
+# Default Theos: the last commit before Logos' June 2026 %orig parser change
+# (theos/logos 777925d), which breaks tweaks with one-line `{ ... %orig; }` methods.
+THEOS_DEFAULT_REF=9bc73406cf80b711ef4d02c15ff1dedc4478a275
+
 # setup_theos [sdk-version] [theos-ref]
 # Installs Theos (macOS) into $THEOS and, if given, an iOS SDK from theos/sdks.
 setup_theos() {
-  local sdk="${1:-}" ref="${2:-master}"
+  local sdk="${1:-}" ref="${2:-$THEOS_DEFAULT_REF}"
   export THEOS="${THEOS:-$RUNNER_TEMP/theos}"
   log "Installing Theos ($ref) to $THEOS"
   brew list ldid >/dev/null 2>&1 || brew install ldid
