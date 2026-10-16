@@ -39,6 +39,6 @@ Each fork's default branch has, on top of upstream:
 
 **Watch** (every 3 hours): if upstream has a release the fork hasn't built, it starts **Build** when the base IPA is available, or opens a `needs-ipa` issue. A failed build opens a `build-failed` issue and isn't retried until re-run by hand. It also disables upstream's own workflows in the fork.
 
-**Build**: checks out the fork, merges upstream's release tag in the runner (so the fork itself never has to be synced for a build), gets the base IPA, runs `.ometa/build.sh`, and publishes or updates the release. Release tags are upstream's tag, plus `-<app><version>` when an IPA is injected.
+**Build**: checks out the fork and replays the fork's own commits onto upstream's release tag in the runner, so a release never includes unreleased upstream commits and the fork never has to be synced for a build. Then it gets the base IPA, runs `.ometa/build.sh`, and publishes or updates the release. Release tags are upstream's tag, plus `-<app><version>` when an IPA is injected.
 
 To customize an app, commit to its fork; then run **Actions → OMetaVR Build** (or wait for upstream's next release). To pick up upstream changes in the fork's code itself, use GitHub's "Sync fork".

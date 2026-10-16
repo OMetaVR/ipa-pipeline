@@ -1,7 +1,7 @@
 # Reusable build for an OMetaVR fork. The fork calls it from .github/workflows/ometa-build.yml.
 #
-# 1. Checks out the fork and merges upstream's release tag into it (in the runner only),
-#    so the build is upstream's release plus the fork's own changes.
+# 1. Checks out the fork and replays the fork's own commits onto upstream's release tag
+#    (in the runner only), so the build is exactly upstream's release plus the fork's changes.
 # 2. Gets the base IPA, if the fork injects into an app: from the fork's private
 #    "base-ipas" draft release, or from base.url in .ometa/config.json.
 # 3. Restores any build cache declared in .ometa/config.json ("cache": {"paths", "key"}),
@@ -45,17 +45,24 @@ jobs:
           repository: OMetaVR/ipa-pipeline
           path: pipeline
 
-      - name: Merge upstream ${{ inputs.upstream_tag }}
+      - name: Upstream ${{ inputs.upstream_tag }} + the fork's own commits
         run: |
           UPSTREAM=$(jq -r .upstream src/.ometa/config.json)
           echo "UPSTREAM=$UPSTREAM" >> "$GITHUB_ENV"
           cd src
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch --quiet --no-tags "https://github.com/$UPSTREAM.git" "refs/tags/$UPSTREAM_TAG:refs/ometa/upstream"
-          if ! git merge --no-edit refs/ometa/upstream; then
-            echo "::error::The fork's changes conflict with upstream $UPSTREAM_TAG. Merge upstream into the fork by hand, then re-run."
-            git merge --abort; exit 1
+          git fetch --quiet --no-tags "https://github.com/$UPSTREAM.git" \
+            "refs/tags/$UPSTREAM_TAG:refs/ometa/upstream-tag" "HEAD:refs/ometa/upstream-head"
+          # Commits on the fork that upstream doesn't have (anything brought in by
+          # "Sync fork" is reachable from upstream's HEAD and is left out).
+          FORK_BASE=$(git merge-base HEAD refs/ometa/upstream-head)
+          echo "Fork's own commits:"; git log --oneline --no-merges "$FORK_BASE..HEAD"
+          # Replay them onto the release tag, so unreleased upstream commits never get built.
+          git checkout --quiet -B ometa-build
+          if ! git rebase --quiet --onto refs/ometa/upstream-tag "$FORK_BASE"; then
+            echo "::error::The fork's commits don't apply cleanly to upstream $UPSTREAM_TAG. Rebase the fork onto it by hand, then re-run."
+            git rebase --abort; exit 1
           fi
           git submodule update --init --recursive
           echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
