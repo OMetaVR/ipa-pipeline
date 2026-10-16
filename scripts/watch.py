@@ -80,6 +80,8 @@ def disable_upstream_workflows():
 def target_version(release):
     """The base app version upstream targets, or None when any version will do."""
     spec, tag = BASE["version"], release["tag_name"]
+    if spec["from"] == "fixed":  # the fork targets its own version, not upstream's
+        return spec["version"]
     if spec["from"] == "upstream-tag":
         return re.search(spec["regex"], tag).group(1)
     if spec["from"] == "upstream-asset":
