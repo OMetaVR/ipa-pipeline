@@ -4,6 +4,8 @@ Shared build pipeline for my forks of iOS tweaks and apps. Each fork builds upst
 
 | Fork | Upstream | Base app |
 | --- | --- | --- |
+| [uYouEnhanced](https://github.com/OMetaVR/uYouEnhanced) | arichornlover/uYouEnhanced | YouTube (version from upstream's Makefile) |
+| [EeveeSpotifyReincarnated](https://github.com/OMetaVR/EeveeSpotifyReincarnated) | SideloadLabs/EeveeSpotifyReincarnated | Spotify (version from upstream's README) |
 | [TwitchAdBlock](https://github.com/OMetaVR/TwitchAdBlock) | gunnerkidBT/TwitchAdBlock | Twitch (version from upstream's tag) |
 | [YTMusicUltimate](https://github.com/OMetaVR/YTMusicUltimate) | dayanch96/YTMusicUltimate | YouTube Music (any) |
 | [scmusicplus](https://github.com/OMetaVR/scmusicplus) | Rov3r/scmusicplus | SoundCloud (any) |
@@ -11,7 +13,7 @@ Shared build pipeline for my forks of iOS tweaks and apps. Each fork builds upst
 | [iTorrent](https://github.com/OMetaVR/iTorrent) | XITRIX/iTorrent | none, built from source |
 | [feather](https://github.com/OMetaVR/feather) | claration/feather | none, built from source |
 | [BHTikTok](https://github.com/OMetaVR/BHTikTok) | BandarHL/BHTikTok | TikTok (any) |
-| [NeoFreeBird](https://github.com/OMetaVR/NeoFreeBird) | NeoFreeBird/app (BHTwitter continuation) | X (version from upstream's release assets) |
+| [NeoFreeBird](https://github.com/OMetaVR/NeoFreeBird) | NeoFreeBird/app (BHTwitter continuation) | X 12.35 (fixed; upstream targets 12.31.1) |
 | [Un-JailedSpeedAds](https://github.com/OMetaVR/Un-JailedSpeedAds) | SoulRune/Un-JailedSpeedAds | none, `.deb`s + injectable dylib |
 
 ## Supplying a decrypted IPA
