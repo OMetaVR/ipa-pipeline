@@ -11,10 +11,11 @@ log() { printf '\033[36m==>\033[0m %s\n' "$*"; }
 # (theos/logos 777925d), which breaks tweaks with one-line `{ ... %orig; }` methods.
 THEOS_DEFAULT_REF=9bc73406cf80b711ef4d02c15ff1dedc4478a275
 
-# setup_theos [sdk-version] [theos-ref]
-# Installs Theos (macOS) into $THEOS and, if given, an iOS SDK from theos/sdks.
+# setup_theos [sdk-version] [theos-ref] [sdk-repo]
+# Installs Theos (macOS) into $THEOS and, if given, an iOS SDK from theos/sdks
+# (or another GitHub repo laid out the same way, e.g. aricloverALT/sdks).
 setup_theos() {
-  local sdk="${1:-}" ref="${2:-$THEOS_DEFAULT_REF}"
+  local sdk="${1:-}" ref="${2:-$THEOS_DEFAULT_REF}" sdk_repo="${3:-theos/sdks}"
   export THEOS="${THEOS:-$RUNNER_TEMP/theos}"
   log "Installing Theos ($ref) to $THEOS"
   brew list ldid >/dev/null 2>&1 || brew install ldid
@@ -31,7 +32,7 @@ setup_theos() {
   if [ -n "$sdk" ] && [ ! -d "$THEOS/sdks/iPhoneOS$sdk.sdk" ]; then
     log "Fetching iPhoneOS$sdk.sdk"
     local tmp; tmp=$(mktemp -d)
-    git clone --quiet -n --depth=1 --filter=tree:0 https://github.com/theos/sdks.git "$tmp"
+    git clone --quiet -n --depth=1 --filter=tree:0 "https://github.com/$sdk_repo.git" "$tmp"
     git -C "$tmp" sparse-checkout set --no-cone "iPhoneOS$sdk.sdk"
     git -C "$tmp" checkout --quiet
     mkdir -p "$THEOS/sdks"
