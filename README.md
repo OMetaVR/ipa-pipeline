@@ -11,7 +11,7 @@ Shared build pipeline for my forks of iOS tweaks and apps. Each fork builds upst
 | [iTorrent](https://github.com/OMetaVR/iTorrent) | XITRIX/iTorrent | none, built from source |
 | [feather](https://github.com/OMetaVR/feather) | claration/feather | none, built from source |
 | [BHTikTok](https://github.com/OMetaVR/BHTikTok) | BandarHL/BHTikTok | TikTok (any) |
-| [BHTwitter](https://github.com/OMetaVR/BHTwitter) | BandarHL/BHTwitter | X (any) |
+| [NeoFreeBird](https://github.com/OMetaVR/NeoFreeBird) | NeoFreeBird/app (BHTwitter continuation) | X (version from upstream's release assets) |
 | [Un-JailedSpeedAds](https://github.com/OMetaVR/Un-JailedSpeedAds) | SoulRune/Un-JailedSpeedAds | none, `.deb`s + injectable dylib |
 
 ## Supplying a decrypted IPA
