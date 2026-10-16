@@ -77,11 +77,16 @@ def disable_upstream_workflows():
             print(f"Disabled upstream workflow {wf['path']}")
 
 
-def target_version(tag):
+def target_version(release):
     """The base app version upstream targets, or None when any version will do."""
-    spec = BASE["version"]
+    spec, tag = BASE["version"], release["tag_name"]
     if spec["from"] == "upstream-tag":
         return re.search(spec["regex"], tag).group(1)
+    if spec["from"] == "upstream-asset":
+        for asset in release["assets"]:
+            if m := re.search(spec["regex"], asset["name"]):
+                return m.group(1)
+        raise SystemExit(f"No asset on upstream {tag} matches {spec['regex']}")
     if spec["from"] == "upstream-file":
         ref = gh_json("api", f"repos/{UPSTREAM}")["default_branch"] if spec.get("ref") == "default" else tag
         return re.search(spec["regex"], upstream_file(spec["file"], ref)).group(1)
@@ -91,11 +96,12 @@ def target_version(tag):
 def main():
     disable_upstream_workflows()
 
-    tag = gh_json("api", f"repos/{UPSTREAM}/releases/latest")["tag_name"]
+    release = gh_json("api", f"repos/{UPSTREAM}/releases/latest")
+    tag = release["tag_name"]
     print(f"Upstream {UPSTREAM} latest release: {tag}")
 
     needs_draft = bool(BASE) and not BASE.get("url")
-    want = target_version(tag) if needs_draft else None
+    want = target_version(release) if needs_draft else None
     if want:
         print(f"Targets {BASE['name']} {want}")
 

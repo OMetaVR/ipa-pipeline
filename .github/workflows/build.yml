@@ -4,7 +4,8 @@
 #    so the build is upstream's release plus the fork's own changes.
 # 2. Gets the base IPA, if the fork injects into an app: from the fork's private
 #    "base-ipas" draft release, or from base.url in .ometa/config.json.
-# 3. Runs the fork's .ometa/build.sh, which puts the release files in $OUT.
+# 3. Restores any build cache declared in .ometa/config.json ("cache": {"paths", "key"}),
+#    runs the fork's .ometa/build.sh (which puts the release files in $OUT), saves the cache.
 # 4. Publishes (or updates) the fork's GitHub release.
 
 name: Build
@@ -59,6 +60,24 @@ jobs:
           git submodule update --init --recursive
           echo "COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
+      - name: Cache settings
+        id: cache
+        run: |
+          CFG=src/.ometa/config.json
+          [ "$(jq -r '.cache // empty' $CFG)" = "" ] && exit 0
+          KEY="ometa-$(cd src && bash -c "$(jq -r .cache.key $CFG)")"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+          { echo "paths<<EOF"; jq -r '.cache.paths[] | "src/" + .' $CFG; echo "EOF"; } >> "$GITHUB_OUTPUT"
+          echo "Cache key: $KEY"
+
+      - name: Restore cache
+        id: restore
+        if: steps.cache.outputs.key != ''
+        uses: actions/cache/restore@v4
+        with:
+          key: ${{ steps.cache.outputs.key }}
+          path: ${{ steps.cache.outputs.paths }}
+
       - name: Get base IPA
         run: |
           CFG=src/.ometa/config.json
@@ -94,6 +113,14 @@ jobs:
           ls -l "$OUT"
           [ -n "$(ls -A "$OUT")" ] || { echo "::error::build.sh produced no files in \$OUT"; exit 1; }
           (cd "$OUT" && shasum -a 256 *)
+
+      - name: Save cache
+        # Saved even when a later step fails, so a slow dependency build isn't repeated.
+        if: always() && steps.cache.outputs.key != '' && steps.restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.cache.outputs.key }}
+          path: ${{ steps.cache.outputs.paths }}
 
       - name: Publish release
         run: |

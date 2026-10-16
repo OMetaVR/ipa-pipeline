@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fork an upstream repo into OMetaVR and wire it to this pipeline.
 #
-#   scripts/new-fork.sh <owner/repo> <runner> [checkout-dir]
+#   scripts/new-fork.sh <owner/repo> <runner> [checkout-dir] [fork-name]
 #   scripts/new-fork.sh claration/feather macos-latest /mnt/sda2/PROJECTS/iOS/feather
 #
 # Creates the fork, clones it, adds the two ometa-*.yml caller workflows and a
@@ -10,11 +10,11 @@
 set -euo pipefail
 
 UPSTREAM="$1" RUNNER="$2"
-NAME="${UPSTREAM#*/}"
+NAME="${4:-${UPSTREAM#*/}}"
 DIR="${3:-$(pwd)/$NAME}"
 FORK="OMetaVR/$NAME"
 
-gh repo view "$FORK" >/dev/null 2>&1 || gh repo fork "$UPSTREAM" --clone=false --default-branch-only
+gh repo view "$FORK" >/dev/null 2>&1 || gh repo fork "$UPSTREAM" --clone=false --default-branch-only --fork-name "$NAME"
 [ -d "$DIR/.git" ] || git clone --quiet --recurse-submodules "https://github.com/$FORK.git" "$DIR"
 cd "$DIR"
 git config core.fileMode false

@@ -30,8 +30,9 @@ Each fork's default branch has, on top of upstream:
 
 - `.ometa/config.json`: upstream repo, display name, and the base app (`base`), if any:
   - `name`, `bundleId`, `appStoreId`
-  - `version.from`: `upstream-tag` (regex on upstream's release tag), `upstream-file` (regex on a file in upstream), or `any` (the newest IPA you've uploaded)
+  - `version.from`: `upstream-tag` (regex on upstream's release tag), `upstream-asset` (regex on its release asset names), `upstream-file` (regex on a file in upstream), or `any` (the newest IPA you've uploaded)
   - or `url`: a public base IPA (no upload needed)
+- `cache` (optional): `{"paths": [...], "key": "<shell command printing a key>"}`, both relative to the fork checkout, for slow dependency builds (FFmpeg etc.). Saved even if the build fails later.
 - `.ometa/build.sh`: the build recipe. Runs in the fork's checkout with `SRC`, `OUT`, `BASE_IPA`, `BASE_VERSION`, `UPSTREAM_TAG` and `PIPELINE` set; can `source "$PIPELINE/lib/helpers.sh"` for Theos, cyan and IPA helpers; puts release files in `$OUT`.
 - `.ometa/notes.md` (optional): text added to each release.
 - `.github/workflows/ometa-watch.yml` and `ometa-build.yml`: call this repo's reusable [`watch.yml`](.github/workflows/watch.yml) and [`build.yml`](.github/workflows/build.yml).
